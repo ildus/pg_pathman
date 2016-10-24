@@ -64,10 +64,14 @@ static Oid get_parent_of_partition_internal(Oid partition,
  */
 
 /* Create or update PartRelationInfo in local cache. Might emit ERROR. */
+// const PartRelationInfo *
+// refresh_pathman_relation_info(Oid relid,
+// 							  PartType partitioning_type,
+// 							  const char *part_column_name)
 const PartRelationInfo *
 refresh_pathman_relation_info(Oid relid,
 							  PartType partitioning_type,
-							  const char *part_column_name)
+							  Node *partkey)
 {
 	const LOCKMODE			lockmode = AccessShareLock;
 	const TypeCacheEntry   *typcache;
@@ -113,16 +117,17 @@ refresh_pathman_relation_info(Oid relid,
 	prel->parttype = partitioning_type;
 
 	/* Initialize PartRelationInfo using syscache & typcache */
-	prel->attnum	= get_attnum(relid, part_column_name);
+	// prel->attnum	= get_attnum(relid, part_column_name);
+	prel->partkey = partkey;
 
 	/* Attribute number sanity check */
-	if (prel->attnum == InvalidAttrNumber)
-		elog(ERROR, "Relation \"%s\" has no column \"%s\"",
-			 get_rel_name_or_relid(relid), part_column_name);
+	// if (prel->attnum == InvalidAttrNumber)
+	// 	elog(ERROR, "Relation \"%s\" has no column \"%s\"",
+	// 		 get_rel_name_or_relid(relid), part_column_name);
 
 	/* Fetch atttypid, atttypmod, and attcollation in a single cache lookup */
-	get_atttypetypmodcoll(relid, prel->attnum,
-						  &prel->atttype, &prel->atttypmod, &prel->attcollid);
+	// get_atttypetypmodcoll(relid, prel->attnum,
+	// 					  &prel->atttype, &prel->atttypmod, &prel->attcollid);
 
 	/* Fetch HASH & CMP fuctions and other stuff from type cache */
 	typcache = lookup_type_cache(prel->atttype,
@@ -237,17 +242,21 @@ get_pathman_relation_info(Oid relid)
 		if (pathman_config_contains_relation(relid, values, isnull, NULL))
 		{
 			PartType		part_type;
-			const char	   *attname;
+			// const char	   *attname;
+			const char	   *partkey;
+			Node		   *partkey_expr;
 
 			/* We can't use 'part_type' & 'attname' from invalid prel */
 			part_type = DatumGetPartType(values[Anum_pathman_config_parttype - 1]);
-			attname = TextDatumGetCString(values[Anum_pathman_config_attname - 1]);
+			// attname = TextDatumGetCString(values[Anum_pathman_config_attname - 1]);
+			partkey = TextDatumGetCString(values[Anum_pathman_config_partkey - 1]);
+			partkey_expr = parse_partkey(relid, partkey);
 
 			/* Refresh partitioned table cache entry (might turn NULL) */
 			/* TODO: possible refactoring, pass found 'prel' instead of searching */
 			prel = refresh_pathman_relation_info(relid,
 												 part_type,
-												 attname);
+												 partkey_expr);
 		}
 		/* Else clear remaining cache entry */
 		else remove_pathman_relation_info(relid);
@@ -607,13 +616,18 @@ try_perform_parent_refresh(Oid parent)
 	{
 		text	   *attname;
 		PartType	parttype;
+		const char	   *partkey;
+		Node		   *partkey_expr;
 
 		parttype = DatumGetPartType(values[Anum_pathman_config_parttype - 1]);
-		attname = DatumGetTextP(values[Anum_pathman_config_attname - 1]);
+		//!!!attname = DatumGetTextP(values[Anum_pathman_config_attname - 1]);
+		partkey = TextDatumGetCString(values[Anum_pathman_config_partkey - 1]);
+		partkey_expr = parse_partkey(parent, partkey);
 
 		/* If anything went wrong, return false (actually, it might throw ERROR) */
-		if (!PrelIsValid(refresh_pathman_relation_info(parent, parttype,
-													   text_to_cstring(attname))))
+		if (!PrelIsValid(refresh_pathman_relation_info(parent,
+													   parttype,
+													   partkey_expr)))
 			return false;
 	}
 	/* Not a partitioned relation */

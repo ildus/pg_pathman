@@ -28,6 +28,7 @@
 #include "utils/lsyscache.h"
 #include "utils/syscache.h"
 #include "utils/typcache.h"
+#include "tcop/tcopprot.h"
 
 
 #define TABLEOID_STR(subst) ( "pathman_tableoid" subst )
@@ -665,6 +666,52 @@ validate_on_part_init_cb(Oid procid, bool emit_error)
 			 "callback(arg JSONB) RETURNS VOID");
 
 	return is_ok;
+}
+
+/*
+ * Parses partitioning key and returns expression tree
+ */
+Node *
+parse_partkey(Oid relid, const char *partkey)
+{
+	char   *query_string;
+	List   *parsetrees;
+	Node   *result = NULL;
+
+	/*
+	 * The easiest way is to parse an simple query to table with that
+	 * expression
+	 */
+	query_string = psprintf("SELECT %s FROM %s", partkey, get_rel_name(relid));
+
+	PG_TRY();
+	{
+		List	   *querytree_list;
+		Query	   *query;
+		TargetEntry *target;
+
+		parsetrees = pg_parse_query(query_string);
+		Assert(list_length(parsetrees) == 1);
+
+		querytree_list = pg_analyze_and_rewrite((Node *) linitial(parsetrees),
+												query,
+												NULL,
+												0);
+		Assert(list_length(querytree_list) == 1);
+
+		query = (Query *) linitial(querytree_list);
+		Assert(list_length(query->targetList) == 1);
+
+		target = (TargetEntry *) linitial(query->targetList);
+		result = (Node *) target->expr;
+	}
+	PG_CATCH();
+	{
+		result = NULL;
+	}
+	PG_END_TRY();
+
+	return result;
 }
 
 /*

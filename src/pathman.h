@@ -44,7 +44,8 @@
 #define PATHMAN_CONFIG						"pathman_config"
 #define Natts_pathman_config				4
 #define Anum_pathman_config_partrel			1	/* partitioned relation (regclass) */
-#define Anum_pathman_config_attname			2	/* partitioned column (text) */
+// #define Anum_pathman_config_attname			2	/* partitioned column (text) */
+#define Anum_pathman_config_partkey			2	/* partitioning key (text) */
 #define Anum_pathman_config_parttype		3	/* partitioning type (1|2) */
 #define Anum_pathman_config_range_interval	4	/* interval for RANGE pt. (text) */
 

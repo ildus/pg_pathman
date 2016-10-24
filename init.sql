@@ -19,7 +19,8 @@
  */
 CREATE TABLE IF NOT EXISTS @extschema@.pathman_config (
 	partrel			REGCLASS NOT NULL PRIMARY KEY,
-	attname			TEXT NOT NULL,
+	-- attname			TEXT NOT NULL,
+	partkey			TEXT NOT NULL,
 	parttype		INTEGER NOT NULL,
 	range_interval	TEXT,
 
@@ -802,4 +803,10 @@ CREATE OR REPLACE FUNCTION @extschema@.invoke_on_partition_created_callback(
 	partition		REGCLASS,
 	init_callback	REGPROCEDURE)
 RETURNS VOID AS 'pg_pathman', 'invoke_on_partition_created_callback'
+LANGUAGE C;
+
+CREATE OR REPLACE FUNCTION @extschema@.validate_partkey(
+	relid			REGCLASS,
+	key 			TEXT)
+RETURNS VOID AS 'pg_pathman', 'validate_partkey'
 LANGUAGE C;

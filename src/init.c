@@ -618,7 +618,7 @@ pathman_config_contains_relation(Oid relid, Datum *values, bool *isnull,
 
 			/* Perform checks for non-NULL columns */
 			Assert(!isnull[Anum_pathman_config_partrel - 1]);
-			Assert(!isnull[Anum_pathman_config_attname - 1]);
+			Assert(!isnull[Anum_pathman_config_partkey - 1]);
 			Assert(!isnull[Anum_pathman_config_parttype - 1]);
 		}
 
@@ -726,7 +726,9 @@ read_pathman_config(void)
 		bool		isnull[Natts_pathman_config];
 		Oid			relid;		/* partitioned table */
 		PartType	parttype;	/* partitioning type */
-		text	   *attname;	/* partitioned column name */
+		// text	   *attname;	/* partitioned column name */
+		text	   *partkey;	/* partitioning key */
+		Node	   *partkey_expr;
 
 		/* Extract Datums from tuple 'htup' */
 		heap_deform_tuple(htup, RelationGetDescr(rel), values, isnull);
@@ -734,12 +736,13 @@ read_pathman_config(void)
 		/* These attributes are marked as NOT NULL, check anyway */
 		Assert(!isnull[Anum_pathman_config_partrel - 1]);
 		Assert(!isnull[Anum_pathman_config_parttype - 1]);
-		Assert(!isnull[Anum_pathman_config_attname - 1]);
+		Assert(!isnull[Anum_pathman_config_partkey - 1]);
 
 		/* Extract values from Datums */
 		relid = DatumGetObjectId(values[Anum_pathman_config_partrel - 1]);
 		parttype = DatumGetPartType(values[Anum_pathman_config_parttype - 1]);
-		attname = DatumGetTextP(values[Anum_pathman_config_attname - 1]);
+		// attname = DatumGetTextP(values[Anum_pathman_config_attname - 1]);
+		partkey = DatumGetTextP(values[Anum_pathman_config_partkey - 1]);
 
 		/* Check that relation 'relid' exists */
 		if (get_rel_type_id(relid) == InvalidOid)
@@ -751,8 +754,19 @@ read_pathman_config(void)
 					 errhint(INIT_ERROR_HINT)));
 		}
 
+		partkey_expr = parse_partkey(relid, text_to_cstring(partkey));
+		if (!partkey_expr)
+		{
+			DisablePathman();
+			ereport(ERROR,
+					(errmsg("Cannot parse partitioning key \"%s\" for relation %u",
+							text_to_cstring(partkey), relid),
+					 errhint(INIT_ERROR_HINT)));
+		}
+
 		/* Create or update PartRelationInfo for this partitioned table */
-		refresh_pathman_relation_info(relid, parttype, text_to_cstring(attname));
+		// refresh_pathman_relation_info(relid, parttype, text_to_cstring(attname));
+		refresh_pathman_relation_info(relid, parttype, partkey_expr);
 	}
 
 	/* Clean resources */

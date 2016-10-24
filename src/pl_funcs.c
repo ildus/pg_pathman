@@ -61,6 +61,8 @@ PG_FUNCTION_INFO_V1( invoke_on_partition_created_callback );
 
 PG_FUNCTION_INFO_V1( check_security_policy );
 
+PG_FUNCTION_INFO_V1( validate_partkey );
+
 PG_FUNCTION_INFO_V1( debug_capture );
 
 
@@ -560,7 +562,8 @@ Datum
 add_to_pathman_config(PG_FUNCTION_ARGS)
 {
 	Oid					relid;
-	text			   *attname;
+	// text			   *attname;
+	text			   *partkey;
 	PartType			parttype;
 
 	Relation			pathman_config;
@@ -580,15 +583,19 @@ add_to_pathman_config(PG_FUNCTION_ARGS)
 
 	/* Read parameters */
 	relid = PG_GETARG_OID(0);
-	attname = PG_GETARG_TEXT_P(1);
+	// attname = PG_GETARG_TEXT_P(1);
+	partkey = PG_GETARG_TEXT_P(1);
+
+	if (!parse_partkey(relid, text_to_cstring(partkey)))
+		elog(ERROR, "Cannot parse partitioning key \"partkey\"");
 
 	/* Check that relation exists */
 	if (!check_relation_exists(relid))
 		elog(ERROR, "Invalid relation %u", relid);
 
-	if (get_attnum(relid, text_to_cstring(attname)) == InvalidAttrNumber)
-		elog(ERROR, "relation \"%s\" has no column \"%s\"",
-			 get_rel_name_or_relid(relid), text_to_cstring(attname));
+	// if (get_attnum(relid, text_to_cstring(attname)) == InvalidAttrNumber)
+	// 	elog(ERROR, "relation \"%s\" has no column \"%s\"",
+	// 		 get_rel_name_or_relid(relid), text_to_cstring(attname));
 
 	/* Select partitioning type using 'range_interval' */
 	parttype = PG_ARGISNULL(2) ? PT_HASH : PT_RANGE;
@@ -599,8 +606,11 @@ add_to_pathman_config(PG_FUNCTION_ARGS)
 	values[Anum_pathman_config_partrel - 1]			= ObjectIdGetDatum(relid);
 	isnull[Anum_pathman_config_partrel - 1]			= false;
 
-	values[Anum_pathman_config_attname - 1]			= PointerGetDatum(attname);
-	isnull[Anum_pathman_config_attname - 1]			= false;
+	// values[Anum_pathman_config_attname - 1]			= PointerGetDatum(attname);
+	// isnull[Anum_pathman_config_attname - 1]			= false;
+
+	values[Anum_pathman_config_partkey - 1]			= PointerGetDatum(partkey);
+	isnull[Anum_pathman_config_partkey - 1]			= false;
 
 	values[Anum_pathman_config_parttype - 1]		= Int32GetDatum(parttype);
 	isnull[Anum_pathman_config_parttype - 1]		= false;
@@ -623,7 +633,8 @@ add_to_pathman_config(PG_FUNCTION_ARGS)
 		/* Some flags might change during refresh attempt */
 		save_pathman_init_state(&init_state);
 
-		refresh_pathman_relation_info(relid, parttype, text_to_cstring(attname));
+		refresh_pathman_relation_info(relid, parttype, partkey);
+		// refresh_pathman_relation_info(relid, parttype, text_to_cstring(attname));
 	}
 	PG_CATCH();
 	{
@@ -883,6 +894,19 @@ check_security_policy(PG_FUNCTION_ARGS)
 
 	/* Else return TRUE */
 	PG_RETURN_BOOL(true);
+}
+
+
+Datum
+validate_partkey(PG_FUNCTION_ARGS)
+{
+	Oid			relid = PG_GETARG_OID(0);
+	text	   *partkey = PG_GETARG_TEXT_P(1);
+
+	if (parse_partkey(relid, text_to_cstring(partkey)))
+		PG_RETURN_BOOL(true);
+
+	PG_RETURN_BOOL(false);
 }
 
 

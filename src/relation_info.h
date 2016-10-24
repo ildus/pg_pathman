@@ -14,6 +14,7 @@
 #include "postgres.h"
 #include "access/attnum.h"
 #include "port/atomics.h"
+#include "nodes/nodes.h"
 
 
 /*
@@ -55,6 +56,7 @@ typedef struct
 
 	PartType		parttype;		/* partitioning type (HASH | RANGE) */
 	AttrNumber		attnum;			/* partitioned column's index */
+	Node		   *partkey;
 	Oid				atttype;		/* partitioned column's type */
 	int32			atttypmod;		/* partitioned column type modifier */
 	bool			attbyval;		/* is partitioned column stored by value? */
@@ -120,7 +122,7 @@ PrelLastChild(const PartRelationInfo *prel)
 
 const PartRelationInfo *refresh_pathman_relation_info(Oid relid,
 													  PartType partitioning_type,
-													  const char *part_column_name);
+													  Node *partkey);
 void invalidate_pathman_relation_info(Oid relid, bool *found);
 void remove_pathman_relation_info(Oid relid);
 const PartRelationInfo *get_pathman_relation_info(Oid relid);
