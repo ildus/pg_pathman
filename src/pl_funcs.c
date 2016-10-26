@@ -61,7 +61,7 @@ PG_FUNCTION_INFO_V1( invoke_on_partition_created_callback );
 
 PG_FUNCTION_INFO_V1( check_security_policy );
 
-PG_FUNCTION_INFO_V1( validate_partkey );
+PG_FUNCTION_INFO_V1( get_partkey_type );
 
 PG_FUNCTION_INFO_V1( debug_capture );
 
@@ -519,9 +519,9 @@ build_check_constraint_name_attnum(PG_FUNCTION_ARGS)
 		elog(ERROR, "Invalid relation %u", relid);
 
 	/* We explicitly do not support system attributes */
-	if (attnum == InvalidAttrNumber || attnum < 0)
-		elog(ERROR, "Cannot build check constraint name: "
-					"invalid attribute number %i", attnum);
+	// if (attnum == InvalidAttrNumber || attnum < 0)
+	// 	elog(ERROR, "Cannot build check constraint name: "
+	// 				"invalid attribute number %i", attnum);
 
 	result = build_check_constraint_name_internal(relid, attnum);
 
@@ -532,16 +532,17 @@ Datum
 build_check_constraint_name_attname(PG_FUNCTION_ARGS)
 {
 	Oid			relid = PG_GETARG_OID(0);
-	text	   *attname = PG_GETARG_TEXT_P(1);
-	AttrNumber	attnum = get_attnum(relid, text_to_cstring(attname));
+	// text	   *attname = PG_GETARG_TEXT_P(1);
+	// AttrNumber	attnum = get_attnum(relid, text_to_cstring(attname));
+	AttrNumber	attnum = 1;
 	const char *result;
 
 	if (!check_relation_exists(relid))
 		elog(ERROR, "Invalid relation %u", relid);
 
-	if (attnum == InvalidAttrNumber)
-		elog(ERROR, "relation \"%s\" has no column \"%s\"",
-			 get_rel_name_or_relid(relid), text_to_cstring(attname));
+	// if (attnum == InvalidAttrNumber)
+	// 	elog(ERROR, "relation \"%s\" has no column \"%s\"",
+	// 		 get_rel_name_or_relid(relid), text_to_cstring(attname));
 
 	result = build_check_constraint_name_internal(relid, attnum);
 
@@ -564,6 +565,7 @@ add_to_pathman_config(PG_FUNCTION_ARGS)
 	Oid					relid;
 	// text			   *attname;
 	text			   *partkey;
+	Node			   *partkey_expr;
 	PartType			parttype;
 
 	Relation			pathman_config;
@@ -585,8 +587,9 @@ add_to_pathman_config(PG_FUNCTION_ARGS)
 	relid = PG_GETARG_OID(0);
 	// attname = PG_GETARG_TEXT_P(1);
 	partkey = PG_GETARG_TEXT_P(1);
+	partkey_expr = parse_partkey(relid, text_to_cstring(partkey));
 
-	if (!parse_partkey(relid, text_to_cstring(partkey)))
+	if (!partkey_expr)
 		elog(ERROR, "Cannot parse partitioning key \"partkey\"");
 
 	/* Check that relation exists */
@@ -633,7 +636,7 @@ add_to_pathman_config(PG_FUNCTION_ARGS)
 		/* Some flags might change during refresh attempt */
 		save_pathman_init_state(&init_state);
 
-		refresh_pathman_relation_info(relid, parttype, partkey);
+		refresh_pathman_relation_info(relid, parttype, partkey_expr);
 		// refresh_pathman_relation_info(relid, parttype, text_to_cstring(attname));
 	}
 	PG_CATCH();
@@ -898,15 +901,18 @@ check_security_policy(PG_FUNCTION_ARGS)
 
 
 Datum
-validate_partkey(PG_FUNCTION_ARGS)
+get_partkey_type(PG_FUNCTION_ARGS)
 {
 	Oid			relid = PG_GETARG_OID(0);
 	text	   *partkey = PG_GETARG_TEXT_P(1);
+	Node	   *partkey_expr = NULL;
+	Oid			result;
 
-	if (parse_partkey(relid, text_to_cstring(partkey)))
-		PG_RETURN_BOOL(true);
+	if (!(partkey_expr = parse_partkey(relid, text_to_cstring(partkey))))
+		elog(ERROR, "Cannot parse partitioning key \"%s\"", text_to_cstring(partkey));
 
-	PG_RETURN_BOOL(false);
+	result = exprType(partkey_expr);
+	PG_RETURN_OID(result);
 }
 
 

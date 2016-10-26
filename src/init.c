@@ -1042,22 +1042,27 @@ validate_hash_constraint(const Expr *expr,
 		type_hash_proc_expr = (FuncExpr *) first;
 
 		/* Check that function is indeed TYPE_HASH_PROC */
-		if (type_hash_proc_expr->funcid != prel->hash_proc ||
-				!(IsA(linitial(type_hash_proc_expr->args), Var) ||
-				  IsA(linitial(type_hash_proc_expr->args), RelabelType)))
+		// if (type_hash_proc_expr->funcid != prel->hash_proc ||
+		// 		!(IsA(linitial(type_hash_proc_expr->args), Var) ||
+		// 		  IsA(linitial(type_hash_proc_expr->args), RelabelType)))
+		// {
+		// 	return false;
+		// }
+		if (type_hash_proc_expr->funcid != prel->hash_proc)
 		{
 			return false;
 		}
 
 		/* Extract argument into 'var' */
-		if (IsA(linitial(type_hash_proc_expr->args), RelabelType))
-			var = (Var *) ((RelabelType *) linitial(type_hash_proc_expr->args))->arg;
-		else
-			var = (Var *) linitial(type_hash_proc_expr->args);
+		// !!! TODO: think something up here!
+		// if (IsA(linitial(type_hash_proc_expr->args), RelabelType))
+		// 	var = (Var *) ((RelabelType *) linitial(type_hash_proc_expr->args))->arg;
+		// else
+		// 	var = (Var *) linitial(type_hash_proc_expr->args);
 
-		/* Check that 'var' is the partitioning key attribute */
-		if (var->varoattno != prel->attnum)
-			return false;
+		// /* Check that 'var' is the partitioning key attribute */
+		// if (var->varoattno != prel->attnum)
+		// 	return false;
 
 		/* Check that PARTITIONS_COUNT is equal to total amount of partitions */
 		if (DatumGetUInt32(((Const *) second)->constvalue) != PrelChildrenCount(prel))

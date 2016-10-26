@@ -86,6 +86,7 @@ static WrapperNode *handle_arrexpr(const ScalarArrayOpExpr *expr, WalkerContext 
 static double estimate_paramsel_using_prel(const PartRelationInfo *prel, int strategy);
 static RestrictInfo *rebuild_restrictinfo(Node *clause, RestrictInfo *old_rinfo);
 static bool pull_var_param(const WalkerContext *ctx, const OpExpr *expr, Node **var_ptr, Node **param_ptr);
+static bool match_parkey_to_expr(const PartRelationInfo *prel, const Expr *expr);
 
 /* copied from allpaths.h */
 static void set_plain_rel_size(PlannerInfo *root, RelOptInfo *rel,
@@ -1456,37 +1457,52 @@ pull_var_param(const WalkerContext *ctx,
 	Var	   *v = NULL;
 
 	/* Check the case when variable is on the left side */
-	if (IsA(left, Var) || IsA(left, RelabelType))
+	// if (IsA(left, Var) || IsA(left, RelabelType))
+	if (match_parkey_to_expr(ctx->prel, (Expr *) left))
 	{
-		v = !IsA(left, RelabelType) ?
-						(Var *) left :
-						(Var *) ((RelabelType *) left)->arg;
+		// char *orig = deparse_expression(ctx->prel->partkey, NIL, false, false);
+		// v = !IsA(left, RelabelType) ?
+		// 				(Var *) left :
+		// 				(Var *) ((RelabelType *) left)->arg;
 
-		if (v->varoattno == ctx->prel->attnum)
-		{
-			*var_ptr = left;
-			*param_ptr = right;
-			return true;
-		}
+		// if (v->varoattno == ctx->prel->attnum)
+		// {
+		// 	*var_ptr = left;
+		// 	*param_ptr = right;
+		// 	return true;
+		// }
+		*var_ptr = left;
+		*param_ptr = right;
+		return true;
 	}
 
 	/* ... variable is on the right side */
-	if (IsA(right, Var) || IsA(right, RelabelType))
+	// if (IsA(right, Var) || IsA(right, RelabelType))
+	if (match_parkey_to_expr(ctx->prel, (Expr *) right))
 	{
-		v = !IsA(right, RelabelType) ?
-						(Var *) right :
-						(Var *) ((RelabelType *) right)->arg;
+		// v = !IsA(right, RelabelType) ?
+		// 				(Var *) right :
+		// 				(Var *) ((RelabelType *) right)->arg;
 
-		if (v->varoattno == ctx->prel->attnum)
-		{
-			*var_ptr = right;
-			*param_ptr = left;
-			return true;
-		}
+		// if (v->varoattno == ctx->prel->attnum)
+		// {
+		// 	*var_ptr = right;
+		// 	*param_ptr = left;
+		// 	return true;
+		// }
+		*var_ptr = right;
+		*param_ptr = left;
+		return true;
 	}
 
 	/* Variable isn't a partitionig key */
 	return false;
+}
+
+static bool
+match_parkey_to_expr(const PartRelationInfo *prel, const Expr *expr)
+{
+	return equal(prel->partkey, expr);
 }
 
 /*
@@ -1563,7 +1579,7 @@ handle_arrexpr(const ScalarArrayOpExpr *expr, WalkerContext *context)
 {
 	WrapperNode *result = (WrapperNode *) palloc(sizeof(WrapperNode));
 	Node		*varnode = (Node *) linitial(expr->args);
-	Var			*var;
+	// Var			*var;
 	Node		*arraynode = (Node *) lsecond(expr->args);
 	const PartRelationInfo *prel = context->prel;
 
@@ -1574,15 +1590,16 @@ handle_arrexpr(const ScalarArrayOpExpr *expr, WalkerContext *context)
 	Assert(varnode != NULL);
 
 	/* If variable is not the partition key then skip it */
-	if (IsA(varnode, Var) || IsA(varnode, RelabelType))
+	// if (IsA(varnode, Var) || IsA(varnode, RelabelType))
+	if (match_parkey_to_expr(context->prel, (Expr *) varnode))
 	{
-		var = !IsA(varnode, RelabelType) ?
-			(Var *) varnode :
-			(Var *) ((RelabelType *) varnode)->arg;
+		// var = !IsA(varnode, RelabelType) ?
+		// 	(Var *) varnode :
+		// 	(Var *) ((RelabelType *) varnode)->arg;
 
 		/* Skip if base types or attribute numbers do not match */
-		if (getBaseType(var->vartype) != getBaseType(prel->atttype) ||
-			var->varoattno != prel->attnum)
+		// if (getBaseType(var->vartype) != getBaseType(prel->atttype) ||
+		if (getBaseType(exprType(varnode)) != getBaseType(prel->atttype))
 		{
 			goto handle_arrexpr_return;
 		}

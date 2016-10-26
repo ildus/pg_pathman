@@ -120,6 +120,9 @@ refresh_pathman_relation_info(Oid relid,
 	// prel->attnum	= get_attnum(relid, part_column_name);
 	prel->partkey = partkey;
 
+	prel->atttype = exprType(partkey);
+	prel->attnum = 1;   // !!! TODO: remove that. This is just a stub !!!
+
 	/* Attribute number sanity check */
 	// if (prel->attnum == InvalidAttrNumber)
 	// 	elog(ERROR, "Relation \"%s\" has no column \"%s\"",
@@ -614,7 +617,7 @@ try_perform_parent_refresh(Oid parent)
 
 	if (pathman_config_contains_relation(parent, values, isnull, NULL))
 	{
-		text	   *attname;
+		// text	   *attname;
 		PartType	parttype;
 		const char	   *partkey;
 		Node		   *partkey_expr;

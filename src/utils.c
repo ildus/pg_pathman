@@ -9,6 +9,7 @@
  */
 
 #include "utils.h"
+#include "init.h"
 
 #include "access/htup_details.h"
 #include "access/nbtree.h"
@@ -689,14 +690,17 @@ parse_partkey(Oid relid, const char *partkey)
 		List	   *querytree_list;
 		Query	   *query;
 		TargetEntry *target;
+		bool pg_pathman_enable_old = pg_pathman_init_state.pg_pathman_enable;
 
 		parsetrees = pg_parse_query(query_string);
 		Assert(list_length(parsetrees) == 1);
 
+		pg_pathman_init_state.pg_pathman_enable = false;
 		querytree_list = pg_analyze_and_rewrite((Node *) linitial(parsetrees),
-												query,
+												query_string,
 												NULL,
 												0);
+		pg_pathman_init_state.pg_pathman_enable = pg_pathman_enable_old;
 		Assert(list_length(querytree_list) == 1);
 
 		query = (Query *) linitial(querytree_list);

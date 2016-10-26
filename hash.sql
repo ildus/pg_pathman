@@ -13,7 +13,7 @@
  */
 CREATE OR REPLACE FUNCTION @extschema@.create_hash_partitions(
 	parent_relid		REGCLASS,
-	attribute			TEXT,
+	key					TEXT,
 	partitions_count	INTEGER,
 	partition_data		BOOLEAN DEFAULT TRUE)
 RETURNS INTEGER AS
@@ -37,19 +37,21 @@ BEGIN
 		PERFORM @extschema@.lock_partitioned_relation(parent_relid);
 	END IF;
 
-	attribute := lower(attribute);
-	PERFORM @extschema@.common_relation_checks(parent_relid, attribute);
+	-- attribute := lower(attribute);
+	-- PERFORM @extschema@.common_relation_checks(parent_relid, attribute);
 
 	/* Fetch atttype and its hash function */
-	v_atttype := @extschema@.get_attribute_type(parent_relid, attribute);
+	-- v_atttype := @extschema@.get_attribute_type(parent_relid, attribute);
+	v_atttype := @extschema@.get_partkey_type(parent_relid, key);
+	RAISE NOTICE 'atttype: %', v_atttype;
 	v_hashfunc := @extschema@.get_type_hash_func(v_atttype);
 
 	SELECT * INTO v_plain_schema, v_plain_relname
 	FROM @extschema@.get_plain_schema_and_relname(parent_relid);
 
 	/* Insert new entry to pathman config */
-	INSERT INTO @extschema@.pathman_config (partrel, attname, parttype)
-	VALUES (parent_relid, attribute, 1);
+	INSERT INTO @extschema@.pathman_config (partrel, partkey, parttype)
+	VALUES (parent_relid, key, 1);
 
 	/* Create partitions and update pg_pathman configuration */
 	FOR partnum IN 0..partitions_count-1
@@ -68,9 +70,9 @@ BEGIN
 						CHECK (@extschema@.get_hash_part_idx(%s(%s), %s) = %s)',
 					   v_child_relname,
 					   @extschema@.build_check_constraint_name(v_child_relname::REGCLASS,
-															   attribute),
+															   1::int2 /* --attribute*/),
 					   v_hashfunc::TEXT,
-					   attribute,
+					   key,
 					   partitions_count,
 					   partnum);
 

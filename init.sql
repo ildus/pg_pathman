@@ -377,8 +377,7 @@ LANGUAGE plpgsql;
  * Suitable for every partitioning type.
  */
 CREATE OR REPLACE FUNCTION @extschema@.common_relation_checks(
-	relation		REGCLASS,
-	p_attribute		TEXT)
+	relation		REGCLASS)
 RETURNS BOOLEAN AS
 $$
 DECLARE
@@ -401,9 +400,11 @@ BEGIN
 		RAISE EXCEPTION 'relation "%" has already been partitioned', relation;
 	END IF;
 
+	/* !!!
 	IF @extschema@.is_attribute_nullable(relation, p_attribute) THEN
 		RAISE EXCEPTION 'partitioning key ''%'' must be NOT NULL', p_attribute;
 	END IF;
+	*/
 
 	/* Check if there are foreign keys that reference the relation */
 	FOR v_rec IN (SELECT * FROM pg_catalog.pg_constraint
@@ -805,8 +806,8 @@ CREATE OR REPLACE FUNCTION @extschema@.invoke_on_partition_created_callback(
 RETURNS VOID AS 'pg_pathman', 'invoke_on_partition_created_callback'
 LANGUAGE C;
 
-CREATE OR REPLACE FUNCTION @extschema@.validate_partkey(
+CREATE OR REPLACE FUNCTION @extschema@.get_partkey_type(
 	relid			REGCLASS,
 	key 			TEXT)
-RETURNS VOID AS 'pg_pathman', 'validate_partkey'
+RETURNS REGTYPE AS 'pg_pathman', 'get_partkey_type'
 LANGUAGE C;
