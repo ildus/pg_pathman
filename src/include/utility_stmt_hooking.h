@@ -19,6 +19,8 @@
 #include "commands/copy.h"
 #include "nodes/nodes.h"
 
+/* GUC variables */
+void init_fallback_partition_guc_variables(void);
 
 /* Various traits */
 bool is_pathman_related_copy(Node *parsetree);

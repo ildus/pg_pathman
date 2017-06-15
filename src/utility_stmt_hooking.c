@@ -33,7 +33,6 @@
 
 #include "libpq/libpq.h"
 
-
 /* Determine whether we should enable COPY or not (PostgresPro has a fix) */
 #if defined(WIN32) && \
 		(!defined(ENABLE_PGPRO_PATCHES) || \
@@ -64,7 +63,6 @@ static void prepare_rri_for_copy(EState *estate,
 								 ResultRelInfoHolder *rri_holder,
 								 const ResultPartsStorage *rps_storage,
 								 void *arg);
-
 
 /*
  * Is pg_pathman supposed to handle this COPY stmt?

@@ -64,6 +64,9 @@ static const struct config_enum_entry pg_pathman_insert_into_fdw_options[] = {
 bool				pg_pathman_enable_partition_filter = true;
 int					pg_pathman_insert_into_fdw = PF_FDW_INSERT_POSTGRES;
 
+bool				pg_pathman_enable_fallback_partition = true;
+char			   *pg_pathman_fallback_partition_name;
+
 CustomScanMethods	partition_filter_plan_methods;
 CustomExecMethods	partition_filter_exec_methods;
 
@@ -128,6 +131,25 @@ init_partition_filter_static_data(void)
 							 NULL,
 							 NULL,
 							 NULL);
+
+	DefineCustomBoolVariable("pg_pathman.enable_fallback_partition",
+							 "Enables fallback partition for COPY when partitioning key returns NULL",
+							 NULL,
+							 &pg_pathman_enable_fallback_partition,
+							 false,
+							 PGC_USERSET,
+							 0,
+							 NULL,
+							 NULL,
+							 NULL);
+
+	DefineCustomStringVariable("pg_pathman.fallback_partition_name",
+							   "Partition name for NULL tuples in COPY command",
+							   NULL,
+							   &pg_pathman_fallback_partition_name,
+							   "pathman_%s_fallback",
+							   PGC_SUSET, 0,
+							   NULL, NULL, NULL);
 }
 
 
