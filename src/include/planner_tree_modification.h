@@ -29,8 +29,9 @@ void plan_tree_walker(Plan *plan,
 					  void (*visitor) (Plan *plan, void *context),
 					  void *context);
 
-/* Query tree rewriting utility */
+/* Query tree rewriting utilities */
 void pathman_transform_query(Query *parse, ParamListInfo params);
+void pathman_post_analyze_query(Query *parse);
 
 /* These functions scribble on Plan tree */
 void add_partition_filters(List *rtable, Plan *plan);

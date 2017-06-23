@@ -15,6 +15,7 @@
 #include "compat/relation_tags.h"
 #include "compat/rowmarks_fix.h"
 
+#include "declarative.h"
 #include "hooks.h"
 #include "init.h"
 #include "partition_filter.h"
@@ -628,9 +629,11 @@ pathman_post_parse_analysis_hook(ParseState *pstate, Query *query)
 	{
 		load_config(); /* perform main cache initialization */
 	}
+	if (!IsPathmanReady())
+		return;
 
 	/* Process inlined SQL functions (we've already entered planning stage) */
-	if (IsPathmanReady() && get_refcount_relation_tags() > 0)
+	if (get_refcount_relation_tags() > 0)
 	{
 		/* Check that pg_pathman is the last extension loaded */
 		if (post_parse_analyze_hook != pathman_post_parse_analysis_hook)
@@ -674,7 +677,10 @@ pathman_post_parse_analysis_hook(ParseState *pstate, Query *query)
 
 		/* Modify query tree if needed */
 		pathman_transform_query(query, NULL);
+		return;
 	}
+
+	pathman_post_analyze_query(query);
 }
 
 /*
@@ -814,6 +820,31 @@ pathman_process_utility_hook(Node *first_arg,
 
 			/* Don't forget to invalidate parsed partitioning expression */
 			pathman_config_invalidate_parsed_expression(relation_oid);
+		}
+		else if (is_pathman_related_partitioning_cmd(parsetree))
+		{
+			/* we can handle all the partitioning commands */
+			if (IsA(parsetree, AlterTableStmt))
+			{
+				ListCell		*lc;
+				AlterTableStmt	*stmt = (AlterTableStmt *) parsetree;
+
+				foreach(lc, stmt->cmds)
+				{
+					AlterTableCmd  *cmd = (AlterTableCmd *) lfirst(lc);
+					switch (cmd->subtype)
+					{
+						case AT_AttachPartition:
+							handle_attach_partition(stmt, cmd);
+							return;
+						case AT_DetachPartition:
+							handle_detach_partition(stmt, cmd);
+							return;
+						default:
+							elog(ERROR, "can't handle this command");
+					}
+				}
+			}
 		}
 	}
 

@@ -14,6 +14,7 @@
 #include "compat/relation_tags.h"
 #include "compat/rowmarks_fix.h"
 
+#include "declarative.h"
 #include "partition_filter.h"
 #include "planner_tree_modification.h"
 #include "rewrite/rewriteManip.h"
@@ -30,6 +31,7 @@
 
 
 static bool pathman_transform_query_walker(Node *node, void *context);
+static bool pathman_post_analyze_query_walker(Node *node, void *context);
 
 static void disable_standard_inheritance(Query *parse);
 static void handle_modification_query(Query *parse, ParamListInfo params);
@@ -143,6 +145,12 @@ pathman_transform_query(Query *parse, ParamListInfo params)
 	pathman_transform_query_walker((Node *) parse, (void *) params);
 }
 
+void
+pathman_post_analyze_query(Query *parse)
+{
+	pathman_post_analyze_query_walker((Node *) parse, NULL);
+}
+
 /* Walker for pathman_transform_query() */
 static bool
 pathman_transform_query_walker(Node *node, void *context)
@@ -175,6 +183,31 @@ pathman_transform_query_walker(Node *node, void *context)
 								  context);
 }
 
+static bool
+pathman_post_analyze_query_walker(Node *node, void *context)
+{
+	if (node == NULL)
+		return false;
+
+	else if (IsA(node, Query))
+	{
+		Query *query = (Query *) node;
+
+		/* Make changes for declarative syntax */
+		modify_declative_partitioning_query(query);
+
+		/* Handle Query node */
+		return query_tree_walker(query,
+								 pathman_post_analyze_query_walker,
+								 context,
+								 0);
+	}
+
+	/* Handle expression subtree */
+	return expression_tree_walker(node,
+								  pathman_post_analyze_query_walker,
+								  context);
+}
 
 /*
  * ----------------------
