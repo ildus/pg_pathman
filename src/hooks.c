@@ -680,7 +680,13 @@ pathman_post_parse_analysis_hook(ParseState *pstate, Query *query)
 		return;
 	}
 
+#if PG_VERSION_NUM >= 100000
+	/*
+	 * for now this call works only for declarative partitioning so
+	 * we disabled it
+	 */
 	pathman_post_analyze_query(query);
+#endif
 }
 
 /*
@@ -821,6 +827,7 @@ pathman_process_utility_hook(Node *first_arg,
 			/* Don't forget to invalidate parsed partitioning expression */
 			pathman_config_invalidate_parsed_expression(relation_oid);
 		}
+#if PG_VERSION_NUM >= 100000
 		else if (is_pathman_related_partitioning_cmd(parsetree))
 		{
 			/* we can handle all the partitioning commands */
@@ -846,6 +853,7 @@ pathman_process_utility_hook(Node *first_arg,
 				}
 			}
 		}
+#endif
 	}
 
 	/* Finally call process_utility_hook_next or standard_ProcessUtility */
