@@ -2,13 +2,26 @@
 
 MODULE_big = pg_pathman
 
+# versions of postgresql with declarative partitioning
+DECL_CHECK_VERSIONS = 10beta1
+
+ifdef USE_PGXS
+PG_CONFIG = pg_config
+VNUM := $(shell $(PG_CONFIG) --version | awk '{print $$2}')
+ifeq ($(VNUM),$(filter $(VNUM), $(DECL_CHECK_VERSIONS)))
+	EXTRA_REGRESS = pathman_declarative
+	EXTRA_OBJS = src/declarative.o
+endif
+endif
+include $(PGXS)
+
 OBJS = src/init.o src/relation_info.o src/utils.o src/partition_filter.o \
 	src/runtimeappend.o src/runtime_merge_append.o src/pg_pathman.o src/rangeset.o \
 	src/pl_funcs.o src/pl_range_funcs.o src/pl_hash_funcs.o src/pathman_workers.o \
 	src/hooks.o src/nodes_common.o src/xact_handling.o src/utility_stmt_hooking.o \
 	src/planner_tree_modification.o src/debug_print.o src/partition_creation.o \
 	src/compat/pg_compat.o src/compat/relation_tags.o src/compat/expand_rte_hook.o \
-	src/compat/rowmarks_fix.o $(WIN32RES)
+	src/compat/rowmarks_fix.o ${EXTRA_OBJS} $(WIN32RES)
 
 override PG_CPPFLAGS += -I$(CURDIR)/src/include
 
@@ -47,22 +60,15 @@ REGRESS = pathman_array_qual \
 		  pathman_rowmarks \
 		  pathman_runtime_nodes \
 		  pathman_update_trigger \
-		  pathman_utility_stmt
+		  pathman_utility_stmt ${EXTRA_REGRESS}
 
 EXTRA_REGRESS_OPTS=--temp-config=$(top_srcdir)/$(subdir)/conf.add
 
 EXTRA_CLEAN = pg_pathman--$(EXTVERSION).sql ./isolation_output
 
-DECL_CHECK_VERSIONS = 10beta1
-
 ifdef USE_PGXS
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
-VNUM := $(shell $(PG_CONFIG) --version | awk '{print $$2}')
-ifeq ($(VNUM),$(filter $(VNUM), $(DECL_CHECK_VERSIONS)))
-	REGRESS += pathman_declarative
-	OBJS += declarative.o
-endif
 include $(PGXS)
 else
 subdir = contrib/pg_pathman
